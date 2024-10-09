@@ -1,4 +1,4 @@
-name: 'Deploy API Management to ${{ github.ref_name }}'
+name: 'Deploy API Management'
 
 on:
   push:
@@ -10,10 +10,9 @@ jobs:
     runs-on: windows-latest
 
     env:
-      deploymentStage: dev  # Substitua conforme necessário ou defina variáveis de ambiente no GitHub.
+      deploymentStage: dev  # Defina como dev, stg, uat ou prod conforme necessário
       resourceTemplateFile: "./infrastructure/bicep/apim.bicep"
       resourceParamsFile: "./infrastructure/parameters/apim-upbi.params.json"
-      resourceGroupName: "rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001"
 
     steps:
       - name: Checkout repository
@@ -27,16 +26,16 @@ jobs:
       - name: Update settings files
         run: |
           echo "Updating settings files"
-          # Adicione seu script ou comando para atualizar arquivos de configuração
-          # Certifique-se de que isso está alinhado com seu processo
+          # Substitua isso por comandos apropriados para atualizar seus arquivos
           echo "Subscription: sc-upbi-microsoft-partner-network"
           echo "Deployment Stage: ${{ env.deploymentStage }}"
 
       - name: Deploy Resource Group
         run: |
           echo "Deploying resource group"
-          echo "Using resource group: ${{ env.resourceGroupName }}"
+          echo "Using resource group: rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001"
           echo "Using template file: ${{ env.resourceTemplateFile }}"
           echo "Using parameters file: ${{ env.resourceParamsFile }}"
-          # Aqui você chamaria os comandos apropriados para a implementação de infra, como:
-          # az deployment group create --resource-group ${{ env.resourceGroupName }} --template-file ${{ env.resourceTemplateFile }} --parameters ${{ env.resourceParamsFile }}
+          # Aqui, substitua pelos comandos reais para a implementação, como o Azure CLI
+          # Exemplo: 
+          # az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFile }} --parameters ${{ env.resourceParamsFile }}
