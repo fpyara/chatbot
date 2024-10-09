@@ -3,7 +3,7 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "resourceName": {
-            "value": "cv-upbi-chatbot-eastus2-{DeploymentStage}-001"
+            "value": "cv-upbi-chatbot-eastus2-{DeploymentStage}-002"
         },
         "skuName": {
             "value": "F0"

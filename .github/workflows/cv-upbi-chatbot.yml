@@ -1,54 +1,38 @@
-parameters:
-  - name: deploymentStage
-    displayName: Deployment Stage
-    type: string
-    default: dev
-    values:
-      - dev
-      - stg
-      - uat
-      - prod
+name: 'DeployCV'
 
-trigger:
-  branches:
-    include:
-      - none
-
-pool:
-  vmImage: windows-latest
-
-variables:
-  - group: upbiinbound-${{ upper(parameters.deploymentStage) }}
-  - name: resourceTemplateFile
-    value: "./infrastructure/bicep/cv.bicep"
-  - name: resourceParamsFile
-    value: "./infrastructure/parameters/cv-upbi.params.json"
-  - name: deploymentStage
-    value: ${{ lower(parameters.deploymentStage) }}
-  
-
-name: 'Branch $(Build.SourceBranchName) to DeploymentStage $(deploymentStage)'
+on:
+  push:
+    branches:
+      - main
 
 jobs:
-  - job: DeployCv
+  DeployCv:
+    runs-on: windows-latest
+
+    env:
+      deploymentStage: dev  # Defina como dev, stg, uat ou prod conforme necessário
+      resourceTemplateFile: "./infrastructure/bicep/cv.bicep"
+      resourceParamsFile: "./infrastructure/parameters/cv-upbi.params.json"
+
     steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFile)
-          params:
-            DeploymentStage: $(deploymentStage)
-    
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network #"Microsoft Partner Network"
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFile)
-          templateParamsFile: $(resourceParamsFile)
-          params:
-            DeploymentStage: $(deploymentStage)
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Git checkout for infrastructure and YAML files
+        run: |
+          git checkout main
+          ls infrastructure yaml
+
+      - name: Update settings files
+        run: |
+          echo "Updating settings files"
+          echo "Subscription: sc-upbi-microsoft-partner-network"
+          echo "Deployment Stage: ${{ env.deploymentStage }}"
+
+      - name: Deploy Resource Group
+        run: |
+          echo "Deploying resource group"
+          echo "Using resource group: rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001"
+          echo "Using template file: ${{ env.resourceTemplateFile }}"
+          echo "Using parameters file: ${{ env.resourceParamsFile }}"
+          # az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFile }} --parameters ${{ env.resourceParamsFile }}
