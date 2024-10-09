@@ -1,4 +1,4 @@
-name: 'Deploy API Management'
+name: 'DeployAPIM'
 
 on:
   push:
@@ -26,7 +26,6 @@ jobs:
       - name: Update settings files
         run: |
           echo "Updating settings files"
-          # Substitua isso por comandos apropriados para atualizar seus arquivos
           echo "Subscription: sc-upbi-microsoft-partner-network"
           echo "Deployment Stage: ${{ env.deploymentStage }}"
 
@@ -36,6 +35,4 @@ jobs:
           echo "Using resource group: rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001"
           echo "Using template file: ${{ env.resourceTemplateFile }}"
           echo "Using parameters file: ${{ env.resourceParamsFile }}"
-          # Aqui, substitua pelos comandos reais para a implementação, como o Azure CLI
-          # Exemplo: 
           # az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFile }} --parameters ${{ env.resourceParamsFile }}
