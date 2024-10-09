@@ -1,38 +1,41 @@
-name: 'DeployCV'
+name: Deploy CV
 
 on:
+  workflow_dispatch: # Permite executar manualmente o workflow
   push:
     branches:
-      - main
+      - main # Ou outra branch que você desejar
 
 jobs:
   DeployCv:
     runs-on: windows-latest
 
-    env:
-      deploymentStage: dev  # Defina como dev, stg, uat ou prod conforme necessário
-      resourceTemplateFile: "./infrastructure/bicep/cv.bicep"
-      resourceParamsFile: "./infrastructure/parameters/cv-upbi.params.json"
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v2
-
-      - name: Git checkout for infrastructure and YAML files
+      
+      - name: Set up parameters
+        id: params
         run: |
-          git checkout main
-          ls infrastructure yaml
+          echo "deploymentStage=${{ github.event.inputs.deploymentStage || 'dev' }}" >> $GITHUB_ENV
+          echo "resourceTemplateFile=./infrastructure/bicep/cv.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFile=./infrastructure/parameters/cv-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceGroupName=rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001" >> $GITHUB_ENV
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
 
       - name: Update settings files
         run: |
-          echo "Updating settings files"
-          echo "Subscription: sc-upbi-microsoft-partner-network"
-          echo "Deployment Stage: ${{ env.deploymentStage }}"
+          # Execute a script or command to update settings files here
+          echo "Updating settings files with deployment stage: ${{ env.deploymentStage }}"
+          # Exemplo: bash update_settings.sh ${{ env.resourceParamsFile }} ${{ env.deploymentStage }}
 
-      - name: Deploy Resource Group
+      - name: Deploy resources
         run: |
-          echo "Deploying resource group"
-          echo "Using resource group: rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001"
-          echo "Using template file: ${{ env.resourceTemplateFile }}"
-          echo "Using parameters file: ${{ env.resourceParamsFile }}"
-          # az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFile }} --parameters ${{ env.resourceParamsFile }}
+          echo "Deploying resources..."
+          az deployment group create --resource-group ${{ env.resourceGroupName }} --template-file ${{ env.resourceTemplateFile }} --parameters @$resourceParamsFile
