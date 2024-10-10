@@ -47,7 +47,7 @@ jobs:
 
       - name: Login to Azure
         run: |
-          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+          az login --service-principal -u "${{ secrets.AZURE_CLIENT_ID }}" -p "${{ secrets.AZURE_CLIENT_SECRET }}" --tenant "${{ secrets.AZURE_TENANT_ID }}"
 
       - name: Create Azure AD Application and Federated Credential
         shell: bash  # Utilize bash para executar o comando
@@ -60,19 +60,4 @@ jobs:
             --id "$applicationRegistrationObjectId" \
             --parameters "{\"name\":\"chatbot\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:${{ env.githubOrganizationName }}/${{ env.githubRepositoryName }}:ref:refs/heads/main\",\"audiences\":[\"api://AzureADTokenExchange\"]}"
 
-      - name: Deploy Stage
-        run: |
-          # Deploying the main stage
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileSt }} --parameters @${{ env.resourceParamsFileSt }}
-
-          # Deploy for additional templates as needed
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileCv }} --parameters @${{ env.resourceParamsFileCv }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesSrch }} --parameters @${{ env.resourceParamsFilesSrch }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesMap }} --parameters @${{ env.resourceParamsFilesMap }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesSs }} --parameters @${{ env.resourceParamsFilesSs }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesOia }} --parameters @${{ env.resourceParamsFilesOia }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesApp }} --parameters @${{ env.resourceParamsFilesApp }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesApplan }} --parameters @${{ env.resourceParamsFilesApplan }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesApim }} --parameters @${{ env.resourceParamsFilesApim }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileDbw }} --parameters @${{ env.resourceParamsFileDbw }}
-          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileSynw }} --parameters @${{ env.resourceParamsFileSynw }}
+      
