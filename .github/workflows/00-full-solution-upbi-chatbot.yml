@@ -1,26 +1,18 @@
-name: Deploy Bicep
+name: ChatBot
 
-on:
-  push:
-    branches:
-      - main  # Ou a branch que você deseja monitorar
+on: [workflow_dispatch]
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  deploy:
+  Login:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Install Azure CLI
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-
-      - name: Log in to Azure
-        uses: azure/login@v1
-        with:
-          client-Id: ${{ secrets.AZURE_CLIENT_ID }}
-          clientSecret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          tenant-Id: ${{ secrets.AZURE_TENANT_ID }}
-          
+    - uses: actions/checkout@v3
+    - uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
