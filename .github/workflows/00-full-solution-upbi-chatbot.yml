@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        deploymentStage: [dev, stg, uat, prod]
+        deploymentStage: dev
 
     steps:
       - name: Checkout Repository
