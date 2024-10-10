@@ -1,367 +1,64 @@
-parameters:
-  - name: deploymentStage
-    displayName: deployment Stage
-    type: string
-    default: dev
-    values:
-      - dev
-      - stg
-      - uat
-      - prod
+name: 'chatbotfull'
 
-trigger:
-  branches:
-    include:
-      - none
-
-pool:
-  vmImage: windows-latest
-
-variables:
-  - group: upbiinbound-${{ upper(parameters.deploymentStage) }}
-  - name: resourceTemplateFileSt 
-    value: "./infrastructure/bicep/st.bicep" 
-  - name: resourceParamsFileSt 
-    value: "./infrastructure/parameters/st-upbi.params.json" 
-  - name: resourceTemplateFileCv 
-    value: "./infrastructure/bicep/cv.bicep" 
-  - name: resourceParamsFileCv 
-    value: "./infrastructure/parameters/cv-upbi.params.json" 
-  - name: resourceParamsFilesSrch 
-    value: "./infrastructure/parameters/srch-upbi.params.json" 
-  - name: resourceTemplateFilesSrch 
-    value: "./infrastructure/bicep/srch.bicep" 
-  - name: resourceParamsFilesMap
-    value: "./infrastructure/parameters/map-upbi.params.json" 
-  - name: resourceTemplateFileMap
-    value: "./infrastructure/bicep/map.bicep" 
-  - name: resourceParamsFilesSs
-    value: "./infrastructure/parameters/ss-upbi.params.json"
-  - name: resourceTemplateFilesSs 
-    value: "./infrastructure/bicep/ss.bicep" 
-  - name: resourceParamsFilesOia
-    value: "./infrastructure/parameters/oia-upbi.params.json"
-  - name: resourceTemplateFilesOia 
-    value: "./infrastructure/bicep/oia.bicep" 
-  - name: resourceTemplateFilesApp 
-    value: "./infrastructure/bicep/app.bicep" 
-  - name: resourceParamsFilesApp
-    value: "./infrastructure/parameters/app-upbi.params.json"
-  - name: resourceTemplateFilesApplan 
-    value: "./infrastructure/bicep/applan.bicep" 
-  - name: resourceParamsFilesApplan
-    value: "./infrastructure/parameters/applan-upbi.params.json"
-  - name: resourceTemplateFilesApim 
-    value: "./infrastructure/bicep/apim.bicep" 
-  - name: resourceParamsFilesApim
-    value: "./infrastructure/parameters/apim-upbi.params.json"     
-  - name: resourceTemplateFileDbw
-    value: "./infrastructure/bicep/dbw.bicep"
-  - name: resourceParamsFileDbw
-    value: "./infrastructure/parameters/dbw-upbi.params.json"
-  - name: resourceTemplateFileSynw
-    value: "./infrastructure/bicep/synw.bicep"
-  - name: resourceParamsFileSynw
-    value: "./infrastructure/parameters/synw-upbi.params.json"
-  - name: deploymentStage
-    value: ${{ lower(parameters.deploymentStage) }}
-
-  - name: githubOrganizationName
-    value: 'PedroCarvalho18'
-  - name: githubRepositoryName
-    value: 'chatbot' 
-
-name: 'Branch $(Build.SourceBranchName) to DeploymentStage $(deploymentStage)'
+on:
+  push:
+    branches:
+      - main
 
 jobs:
-  - job: RegisterApp
-    displayName: 'Register Azure AD Application'
+  deploy:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        deploymentStage: [dev, stg, uat, prod]
+
     steps:
-      - script: |
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        id: vars
+        run: |
+          echo "resourceTemplateFileSt=./infrastructure/bicep/st.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileSt=./infrastructure/parameters/st-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFileCv=./infrastructure/bicep/cv.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileCv=./infrastructure/parameters/cv-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceParamsFilesSrch=./infrastructure/parameters/srch-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFilesSrch=./infrastructure/bicep/srch.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFilesMap=./infrastructure/parameters/map-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFileMap=./infrastructure/bicep/map.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFilesSs=./infrastructure/parameters/ss-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFilesSs=./infrastructure/bicep/ss.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFilesOia=./infrastructure/parameters/oia-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFilesOia=./infrastructure/bicep/oia.bicep" >> $GITHUB_ENV
+          echo "resourceTemplateFilesApp=./infrastructure/bicep/app.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFilesApp=./infrastructure/parameters/app-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFilesApplan=./infrastructure/bicep/applan.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFilesApplan=./infrastructure/parameters/applan-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFilesApim=./infrastructure/bicep/apim.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFilesApim=./infrastructure/parameters/apim-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFileDbw=./infrastructure/bicep/dbw.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileDbw=./infrastructure/parameters/dbw-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFileSynw=./infrastructure/bicep/synw.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileSynw=./infrastructure/parameters/synw-upbi.params.json" >> $GITHUB_ENV
+          echo "githubOrganizationName=PedroCarvalho18" >> $GITHUB_ENV
+          echo "githubRepositoryName=chatbot" >> $GITHUB_ENV
+          echo "deploymentStage=${{ matrix.deploymentStage }}" >> $GITHUB_ENV
+
+      - name: Create Azure AD Application and Federated Credential
+        run: |
           applicationRegistrationDetails=$(az ad app create --display-name 'chatbot')
           applicationRegistrationObjectId=$(echo $applicationRegistrationDetails | jq -r '.id')
           applicationRegistrationAppId=$(echo $applicationRegistrationDetails | jq -r '.appId')
 
           az ad app federated-credential create \
-             --id $applicationRegistrationObjectId \
-             --parameters "{\"name\":\"chatbot\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:${{ variables.githubOrganizationName }}/${{ variables.githubRepositoryName }}:ref:refs/heads/main\",\"audiences\":[\"api://AzureADTokenExchange\"]}"
+            --id $applicationRegistrationObjectId \
+            --parameters "{\"name\":\"chatbot\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:${{ env.githubOrganizationName }}/${{ env.githubRepositoryName }}:ref:refs/heads/main\",\"audiences\":[\"api://AzureADTokenExchange\"]}"
 
-        displayName: 'Create Azure AD Application and Federated Credential'
-        env:
-          AZURE_SUBSCRIPTION: $(AZURE_SUBSCRIPTION)  # Adicione as variáveis de ambiente necessárias aqui
-
-  - job: DeploySt 
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFileSt)
-          params:
-            DeploymentStage: $(deploymentStage)
-    
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network #"Microsoft Partner Network"
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFileSt)
-          templateParamsFile: $(resourceParamsFileSt)
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeployCv 
-    dependsOn:
-      - DeploySt
-    condition: succeeded()
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFileCv)
-          params:
-            DeploymentStage: $(deploymentStage)
-    
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network #"Microsoft Partner Network"
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFileCv)
-          templateParamsFile: $(resourceParamsFileCv)
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeploySrch 
-    dependsOn:
-      - DeployCv
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFilesSrch)
-          params:
-            DeploymentStage: $(deploymentStage)
-    
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network #"Microsoft Partner Network"
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFilesSrch)
-          templateParamsFile: $(resourceParamsFilesSrch)
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeployMap 
-    dependsOn:
-      - DeployCv
-      - DeploySrch
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFilesMap)
-          params:
-            DeploymentStage: $(deploymentStage)
-    
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network #"Microsoft Partner Network"
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFileMap)
-          templateParamsFile: $(resourceParamsFilesMap)
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeploySs 
-    dependsOn:
-      - DeployMap
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFilesSs)
-          params:
-            DeploymentStage: $(deploymentStage)
-    
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network #"Microsoft Partner Network"
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFilesSs)
-          templateParamsFile: $(resourceParamsFilesSs)
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeployOIA
-    dependsOn:
-      - DeploySs
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFilesOia) 
-          params:
-            DeploymentStage: $(deploymentStage)
-  
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFilesOia) 
-          templateParamsFile: $(resourceParamsFilesOia) 
-          params:
-            DeploymentStage: $(deploymentStage)
-
-
-  - job: DeployApplan
-    dependsOn:
-      - DeployOIA
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFilesApplan) 
-          params:
-            DeploymentStage: $(deploymentStage)
-  
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFilesApplan) 
-          templateParamsFile: $(resourceParamsFilesApplan) 
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeployApp
-    dependsOn:
-      - DeployApplan
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFilesApp) 
-          params:
-            DeploymentStage: $(deploymentStage)
-  
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFilesApp) 
-          templateParamsFile: $(resourceParamsFilesApp) 
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeployApim
-    dependsOn:
-      - DeployApp
-    steps:
-      - checkout: none   
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFilesApim) 
-          params:
-            DeploymentStage: $(deploymentStage)
-  
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFilesApim) 
-          templateParamsFile: $(resourceParamsFilesApim) 
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeployDbw
-    dependsOn:
-      - DeployApim
-    steps:
-      - checkout: none
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFileDbw)
-          params:
-            DeploymentStage: $(deploymentStage)
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFileDbw)
-          templateParamsFile: $(resourceParamsFileDbw)
-          params:
-            DeploymentStage: $(deploymentStage)
-
-  - job: DeploySynw
-    dependsOn:
-      - DeployDbw
-    steps:
-      - checkout: none
-      - template: modules/gitcheckout.yml
-        parameters:
-          folders: "infrastructure yaml"
-      - template: modules/settingsfilesupdate.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          settingsFiles: 
-            $(resourceParamsFileSynw)
-          params:
-            DeploymentStage: $(deploymentStage)
-      - template: modules/resourcegroupdeployment.yml
-        parameters:
-          subscriptionName: sc-upbi-microsoft-partner-network
-          resourceGroupName: rg-eu2-latam-poc-mlops-$(deploymentStage)-001
-          templateFile: $(resourceTemplateFileSynw)
-          templateParamsFile: $(resourceParamsFileSynw)
-          params:
-            DeploymentStage: $(deploymentStage)
+      - name: Deploy Stage
+        run: |
+          # Template deployment commands for each stage
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileSt }} --parameters @${{ env.resourceParamsFileSt }}
+          # Repeat for other templates and parameters as needed
 
  
