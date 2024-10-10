@@ -1,0 +1,279 @@
+name: 'Branch $(Build.SourceBranchName) to DeploymentStage $(deploymentStage)'
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploymentStage:
+        description: 'Deployment Stage'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - stg
+          - uat
+          - prod
+jobs:
+  run-powershell:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Run PowerShell commands
+      shell: pwsh
+      run: |
+        $githubOrganizationName = 'PedroCarvalho18'
+        $githubRepositoryName = 'chatbot'
+        $existingResourceGroupName = 'rg-eu2-latam-poc-mlops-dev-001'  # Nome do grupo de recursos existente
+
+        Write-Host "Organization: $githubOrganizationName"
+        Write-Host "Repository: $githubRepositoryName"
+
+        # Obter o grupo de recursos existente
+        $resourceGroup = Get-AzResourceGroup -Name $existingResourceGroupName
+        Write-Host "Using existing Resource Group ID: $($resourceGroup.ResourceId)"
+
+        # Criar registro de aplicação no Azure AD
+        $applicationRegistration = New-AzADApplication -DisplayName 'chatbot'
+        Write-Host "Application ID: $($applicationRegistration.Id)"
+
+        # Configurar credenciais federadas
+        New-AzADAppFederatedCredential -Name 'chatbot' `
+          -ApplicationObjectId $applicationRegistration.Id `
+          -Issuer 'https://token.actions.githubusercontent.com' `
+          -Audience 'api://AzureADTokenExchange' `
+          -Subject "repo:$($githubOrganizationName)/$($githubRepositoryName):ref:refs/heads/main"
+
+        # Criar Service Principal e atribuir funções
+        New-AzADServicePrincipal -AppId $applicationRegistration.AppId
+        New-AzRoleAssignment -ApplicationId $($applicationRegistration.AppId) `
+          -RoleDefinitionName Contributor `
+          -Scope $resourceGroup.ResourceId
+          
+  DeploySt:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileSt=./infrastructure/bicep/st.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileSt=./infrastructure/parameters/st-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceGroupName=rg-eu2-latam-poc-mlops-${{ inputs.deploymentStage }}-001" >> $GITHUB_ENV
+          echo "deploymentStage=${{ inputs.deploymentStage }}" >> $GITHUB_ENV
+
+      - name: Deploy St Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileSt }} \
+            --parameters @${{ env.resourceParamsFileSt }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeployCv:
+    needs: DeploySt
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileCv=./infrastructure/bicep/cv.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileCv=./infrastructure/parameters/cv-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy Cv Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileCv }} \
+            --parameters @${{ env.resourceParamsFileCv }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeploySrch:
+    needs: DeployCv
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileSrch=./infrastructure/bicep/srch.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileSrch=./infrastructure/parameters/srch-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy Search Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileSrch }} \
+            --parameters @${{ env.resourceParamsFileSrch }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeployMap:
+    needs: [DeployCv, DeploySrch]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileMap=./infrastructure/bicep/map.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileMap=./infrastructure/parameters/map-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy Map Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileMap }} \
+            --parameters @${{ env.resourceParamsFileMap }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeploySs:
+    needs: DeployMap
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileSs=./infrastructure/bicep/ss.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileSs=./infrastructure/parameters/ss-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy Ss Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileSs }} \
+            --parameters @${{ env.resourceParamsFileSs }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeployOIA:
+    needs: DeploySs
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileOia=./infrastructure/bicep/oia.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileOia=./infrastructure/parameters/oia-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy OIA Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileOia }} \
+            --parameters @${{ env.resourceParamsFileOia }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeployApplan:
+    needs: DeployOIA
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileApplan=./infrastructure/bicep/applan.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileApplan=./infrastructure/parameters/applan-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy Applan Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileApplan }} \
+            --parameters @${{ env.resourceParamsFileApplan }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeployApp:
+    needs: DeployApplan
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileApp=./infrastructure/bicep/app.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileApp=./infrastructure/parameters/app-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy App Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileApp }} \
+            --parameters @${{ env.resourceParamsFileApp }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeployApim:
+    needs: DeployApp
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileApim=./infrastructure/bicep/apim.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileApim=./infrastructure/parameters/apim-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy Apim Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileApim }} \
+            --parameters @${{ env.resourceParamsFileApim }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeployDbw:
+    needs: DeployApim
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileDbw=./infrastructure/bicep/dbw.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileDbw=./infrastructure/parameters/dbw-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy Dbw Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileDbw }} \
+            --parameters @${{ env.resourceParamsFileDbw }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}
+
+  DeploySynw:
+    needs: DeployDbw
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Variables
+        run: |
+          echo "resourceTemplateFileSynw=./infrastructure/bicep/synw.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFileSynw=./infrastructure/parameters/synw-upbi.params.json" >> $GITHUB_ENV
+
+      - name: Deploy Synw Resource Group
+        run: |
+          az group deployment create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file ${{ env.resourceTemplateFileSynw }} \
+            --parameters @${{ env.resourceParamsFileSynw }} \
+            --parameters DeploymentStage=${{ env.deploymentStage }}        
