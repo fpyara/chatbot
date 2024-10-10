@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        deploymentStage: [dev, stg, uat, prod]  # Defina os estágios de implantação conforme necessário
+        deploymentStage: [dev]  # Defina os estágios de implantação conforme necessário
 
     steps:
       - name: Checkout Repository
@@ -44,6 +44,10 @@ jobs:
           echo "githubOrganizationName=PedroCarvalho18" >> $GITHUB_ENV
           echo "githubRepositoryName=chatbot" >> $GITHUB_ENV
           echo "deploymentStage=${{ matrix.deploymentStage }}" >> $GITHUB_ENV
+
+      - name: Login to Azure
+        run: |
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
 
       - name: Create Azure AD Application and Federated Credential
         shell: bash  # Utilize bash para executar o comando
