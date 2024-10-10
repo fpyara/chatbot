@@ -1,15 +1,5 @@
 name: chatbot
 
-on: [workflow_dispatch]
-
-permissions:
-  id-token: write
-  contents: read
-
-env:
-  AZURE_RESOURCEGROUP_NAME: chatbot
-  ENVIRONMENT: nonprod
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
