@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        deploymentStage: [dev]
+        deploymentStage: [dev, stg, uat, prod]  # Defina os estágios de implantação conforme necessário
 
     steps:
       - name: Checkout Repository
@@ -23,14 +23,14 @@ jobs:
           echo "resourceParamsFileSt=./infrastructure/parameters/st-upbi.params.json" >> $GITHUB_ENV
           echo "resourceTemplateFileCv=./infrastructure/bicep/cv.bicep" >> $GITHUB_ENV
           echo "resourceParamsFileCv=./infrastructure/parameters/cv-upbi.params.json" >> $GITHUB_ENV
-          echo "resourceParamsFilesSrch=./infrastructure/parameters/srch-upbi.params.json" >> $GITHUB_ENV
           echo "resourceTemplateFilesSrch=./infrastructure/bicep/srch.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFilesSrch=./infrastructure/parameters/srch-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceTemplateFilesMap=./infrastructure/bicep/map.bicep" >> $GITHUB_ENV
           echo "resourceParamsFilesMap=./infrastructure/parameters/map-upbi.params.json" >> $GITHUB_ENV
-          echo "resourceTemplateFileMap=./infrastructure/bicep/map.bicep" >> $GITHUB_ENV
-          echo "resourceParamsFilesSs=./infrastructure/parameters/ss-upbi.params.json" >> $GITHUB_ENV
           echo "resourceTemplateFilesSs=./infrastructure/bicep/ss.bicep" >> $GITHUB_ENV
-          echo "resourceParamsFilesOia=./infrastructure/parameters/oia-upbi.params.json" >> $GITHUB_ENV
+          echo "resourceParamsFilesSs=./infrastructure/parameters/ss-upbi.params.json" >> $GITHUB_ENV
           echo "resourceTemplateFilesOia=./infrastructure/bicep/oia.bicep" >> $GITHUB_ENV
+          echo "resourceParamsFilesOia=./infrastructure/parameters/oia-upbi.params.json" >> $GITHUB_ENV
           echo "resourceTemplateFilesApp=./infrastructure/bicep/app.bicep" >> $GITHUB_ENV
           echo "resourceParamsFilesApp=./infrastructure/parameters/app-upbi.params.json" >> $GITHUB_ENV
           echo "resourceTemplateFilesApplan=./infrastructure/bicep/applan.bicep" >> $GITHUB_ENV
@@ -46,19 +46,29 @@ jobs:
           echo "deploymentStage=${{ matrix.deploymentStage }}" >> $GITHUB_ENV
 
       - name: Create Azure AD Application and Federated Credential
+        shell: bash  # Utilize bash para executar o comando
         run: |
           applicationRegistrationDetails=$(az ad app create --display-name 'chatbot')
           applicationRegistrationObjectId=$(echo $applicationRegistrationDetails | jq -r '.id')
           applicationRegistrationAppId=$(echo $applicationRegistrationDetails | jq -r '.appId')
 
           az ad app federated-credential create \
-            --id $applicationRegistrationObjectId \
+            --id "$applicationRegistrationObjectId" \
             --parameters "{\"name\":\"chatbot\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:${{ env.githubOrganizationName }}/${{ env.githubRepositoryName }}:ref:refs/heads/main\",\"audiences\":[\"api://AzureADTokenExchange\"]}"
 
       - name: Deploy Stage
         run: |
-          # Template deployment commands for each stage
+          # Deploying the main stage
           az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileSt }} --parameters @${{ env.resourceParamsFileSt }}
-          # Repeat for other templates and parameters as needed
 
- 
+          # Deploy for additional templates as needed
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileCv }} --parameters @${{ env.resourceParamsFileCv }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesSrch }} --parameters @${{ env.resourceParamsFilesSrch }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesMap }} --parameters @${{ env.resourceParamsFilesMap }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesSs }} --parameters @${{ env.resourceParamsFilesSs }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesOia }} --parameters @${{ env.resourceParamsFilesOia }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesApp }} --parameters @${{ env.resourceParamsFilesApp }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesApplan }} --parameters @${{ env.resourceParamsFilesApplan }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFilesApim }} --parameters @${{ env.resourceParamsFilesApim }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileDbw }} --parameters @${{ env.resourceParamsFileDbw }}
+          az deployment group create --resource-group rg-eu2-latam-poc-mlops-${{ env.deploymentStage }}-001 --template-file ${{ env.resourceTemplateFileSynw }} --parameters @${{ env.resourceParamsFileSynw }}
