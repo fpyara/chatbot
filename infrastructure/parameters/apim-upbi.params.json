@@ -14,9 +14,6 @@
     "skuName": {
       "value": "Consumption"
     },
-    "location": {
-      "value": "eastus2"
-    },
     "skuCount": {
       "value": 0
     }
